@@ -7,8 +7,18 @@
 		<script src="http://ajax.googleapis.com/ajax/libs/jquery/2.1.0/jquery.min.js"></script>
 		<script src="../papaparse.js"></script>
 		<script src="player.js"></script>
+		
 	</head>
 	<body>
+		<![if gt IE 9]>
+		<script type="text/javascript" src="//unpkg.com/xlsx/dist/shim.min.js"></script>
+		<script type="text/javascript" src="//unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+		<![endif]>
+		<!--[if lte IE 9]>
+		<script type="text/javascript" src="shim.min.js"></script>
+		<script type="text/javascript" src="xlsx.full.min.js"></script>
+		<![endif]-->
+		
 		<h1><a href="http://papaparse.com">Papa Parse</a> Player</h1>
 
 		<div class="grid-container">

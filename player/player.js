@@ -154,9 +154,27 @@ function completeFn() {
 	if (!$('#stream').prop('checked') &&
 		!$('#chunk').prop('checked') &&
 		arguments[0] &&
-		arguments[0].data)
+		arguments[0].data) {
+
 		rows = arguments[0].data.length;
 
+		/* original data */
+		var filename = "write.xlsx";
+		var data = arguments[0].data;
+		var ws_name = "SheetJS";
+
+		if (typeof console !== 'undefined') console.log(new Date());
+		var wb = XLSX.utils.book_new(),
+			ws = XLSX.utils.aoa_to_sheet(data);
+
+		/* add worksheet to workbook */
+		XLSX.utils.book_append_sheet(wb, ws, ws_name);
+
+		/* write workbook */
+		if (typeof console !== 'undefined') console.log(new Date());
+		XLSX.writeFile(wb, filename);
+		if (typeof console !== 'undefined') console.log(new Date());
+	}
 	console.log("Finished input (async). Time:", end - start, arguments);
 	console.log("Rows:", rows, "Stepped:", stepped, "Chunks:", chunks);
 }
