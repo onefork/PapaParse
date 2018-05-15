@@ -1,13 +1,13 @@
-var stepped = 0, chunks = 0, rows = 0;
+var stepped = 0,
+	chunks = 0,
+	rows = 0;
 var start, end;
 var parser;
 var pauseChecked = false;
 var printStepChecked = false;
 
-$(function()
-{
-	$('#submit-parse').click(function()
-	{
+$(function () {
+	$('#submit-parse').click(function () {
 		stepped = 0;
 		chunks = 0;
 		rows = 0;
@@ -28,14 +28,10 @@ $(function()
 		printStepChecked = $('#print-steps').prop('checked');
 
 
-		if (files.length > 0)
-		{
-			if (!$('#stream').prop('checked') && !$('#chunk').prop('checked'))
-			{
-				for (var i = 0; i < files.length; i++)
-				{
-					if (files[i].size > 1024 * 1024 * 10)
-					{
+		if (files.length > 0) {
+			if (!$('#stream').prop('checked') && !$('#chunk').prop('checked')) {
+				for (var i = 0; i < files.length; i++) {
+					if (files[i].size > 1024 * 1024 * 10) {
 						alert("A file you've selected is larger than 10 MB; please choose to stream or chunk the input to prevent the browser from crashing.");
 						return;
 					}
@@ -46,26 +42,21 @@ $(function()
 
 			$('#files').parse({
 				config: config,
-				before: function(file, inputElem)
-				{
+				before: function (file, inputElem) {
 					console.log("Parsing file:", file);
 				},
-				complete: function()
-				{
+				complete: function () {
 					console.log("Done with all files.");
 				}
 			});
-		}
-		else
-		{
+		} else {
 			start = performance.now();
 			var results = Papa.parse(txt, config);
 			console.log("Synchronous parse results:", results);
 		}
 	});
 
-	$('#submit-unparse').click(function()
-	{
+	$('#submit-unparse').click(function () {
 		var input = $('#input').val();
 		var delim = $('#delimiter').val();
 		var header = $('#header').prop('checked');
@@ -81,16 +72,14 @@ $(function()
 		console.log("--------------------------------------");
 	});
 
-	$('#insert-tab').click(function()
-	{
+	$('#insert-tab').click(function () {
 		$('#delimiter').val('\t');
 	});
 });
 
 
 
-function buildConfig()
-{
+function buildConfig() {
 	return {
 		delimiter: $('#delimiter').val(),
 		newline: getLineEnding(),
@@ -110,8 +99,7 @@ function buildConfig()
 		beforeFirstChunk: undefined,
 	};
 
-	function getLineEnding()
-	{
+	function getLineEnding() {
 		if ($('#newline-n').is(':checked'))
 			return "\n";
 		else if ($('#newline-r').is(':checked'))
@@ -123,15 +111,13 @@ function buildConfig()
 	}
 }
 
-function stepFn(results, parserHandle)
-{
+function stepFn(results, parserHandle) {
 	stepped++;
 	rows += results.data.length;
 
 	parser = parserHandle;
 
-	if (pauseChecked)
-	{
+	if (pauseChecked) {
 		console.log(results, results.data[0]);
 		parserHandle.pause();
 		return;
@@ -141,8 +127,7 @@ function stepFn(results, parserHandle)
 		console.log(results, results.data[0]);
 }
 
-function chunkFn(results, streamer, file)
-{
+function chunkFn(results, streamer, file) {
 	if (!results)
 		return;
 	chunks++;
@@ -153,28 +138,25 @@ function chunkFn(results, streamer, file)
 	if (printStepChecked)
 		console.log("Chunk data:", results.data.length, results);
 
-	if (pauseChecked)
-	{
+	if (pauseChecked) {
 		console.log("Pausing; " + results.data.length + " rows in chunk; file:", file);
 		streamer.pause();
 		return;
 	}
 }
 
-function errorFn(error, file)
-{
+function errorFn(error, file) {
 	console.log("ERROR:", error, file);
 }
 
-function completeFn()
-{
+function completeFn() {
 	end = performance.now();
-	if (!$('#stream').prop('checked')
-			&& !$('#chunk').prop('checked')
-			&& arguments[0]
-			&& arguments[0].data)
+	if (!$('#stream').prop('checked') &&
+		!$('#chunk').prop('checked') &&
+		arguments[0] &&
+		arguments[0].data)
 		rows = arguments[0].data.length;
 
-	console.log("Finished input (async). Time:", end-start, arguments);
+	console.log("Finished input (async). Time:", end - start, arguments);
 	console.log("Rows:", rows, "Stepped:", stepped, "Chunks:", chunks);
 }
