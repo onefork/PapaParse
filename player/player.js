@@ -149,6 +149,59 @@ function errorFn(error, file) {
 	console.log("ERROR:", error, file);
 }
 
+function unwrapString(value) {
+	if (value.length < 2 || value.charAt(0) !== '\'' || value.substr(-1) !== '\'')
+		return value;
+	var result = value.substring(1, value.length - 1);
+
+	// if value use "''" as to escape "'"
+	// if ((result.match(/\'/g) || []).length !== (result.match(/\'\'/g) || []).length * 2) // only "''", no single "'"
+	// 	return value;
+	// result = result.replace(/\'\'/g, '\'')
+
+	return result;
+}
+
+function expandMultiValue(multiValue, func) {
+	if (!_.isString(multiValue))
+		return 0;
+
+	if (multiValue.length < 2 || multiValue.charAt(0) !== '\'' || multiValue.substr(-1) !== '\'')
+		return 0;
+
+	var values = [];
+	var inString = 0;
+	for (var i = 1; i < multiValue.length; i++) {
+		if (multiValue.charAt(i) === '\'') {
+			if (i + 2 < multiValue.length) {
+				if (multiValue.charAt(i + 1) === '\t' && multiValue.charAt(i + 2) === '\'') { // not last value
+					values.push(multiValue.substring(inString, i + 1));
+					i = i + 2;
+					inString = i;
+				} else if (multiValue.charAt(i + 1) === '\'') { // if use "''" to escape "'"
+					// ++i; // if use "''" to escape "'"
+				} else {
+					// do nothing
+					// return 0; // if use "''" to escape "'"
+				}
+			} else if (i + 1 === multiValue.length) { // last value
+				values.push(multiValue.substring(inString, i + 1));
+				inString = multiValue.length;
+			} else {
+				return 0;
+			}
+		}
+	}
+	if (inString !== multiValue.length)
+		return 0;
+
+	_.each(values, function (value) {
+		func(value);
+	});
+
+	return values.length;
+}
+
 function completeFn() {
 	end = performance.now();
 	if (!$('#stream').prop('checked') &&
@@ -158,17 +211,98 @@ function completeFn() {
 
 		rows = arguments[0].data.length;
 
+		var mode = 'MateCat'; // 'MateCat'
 		/* original data */
-		var filename = "write.xlsx";
+		var filename = (arguments[1] && arguments[1].name) ? String(arguments[1].name) : 'output';
+
+		if (filename.toLowerCase().endsWith('.csv'))
+			filename = filename.substring(0, filename.length - 4);
+		filename += '.xlsx';
 		var data = arguments[0].data;
-		var ws_name = "SheetJS";
+		var outputData = [];
+
+		if (data[0] && data[0][0] && data[0][0] === 'Entity') { // output from RadLex
+			var entityCol = 0;
+			var acronymCol = _.indexOf(data[0], 'Acronym');
+			var commentCol = _.indexOf(data[0], 'Comment');
+			var definitionCol = _.indexOf(data[0], 'Definition');
+			var preferredEnCol = _.indexOf(data[0], 'Preferred_name');
+			var preferredDeCol = _.indexOf(data[0], 'Preferred_name_German');
+			var synonymEnCol = _.indexOf(data[0], 'Synonym');
+			var synonymDeCol = _.indexOf(data[0], 'Synonym_German');
+
+			if (preferredEnCol > -1 && preferredDeCol > -1 && synonymEnCol > -1 && synonymDeCol > -1) { // valid RadLex
+				_.each(data, function (rowData, row) { // each row
+					if (row === 0)
+						outputData.push(rowData);
+					else { // not header row
+						_.each(rowData, function (cellData, col) { // each col
+							if (col === commentCol || col === definitionCol || col === preferredEnCol || col === preferredDeCol)
+								rowData[col] = unwrapString(rowData[col]);
+						});
+
+						var outputRowData;
+
+						if (mode === 'MateCat') {
+							_.each(rowData, function (cellData, col) { // each col
+								switch (col) {
+									case preferredEnCol:
+										outputRowData = _.clone(rowData);
+										outputRowData[synonymEnCol] = rowData[preferredEnCol];
+										outputRowData[synonymDeCol] = rowData[preferredDeCol];
+										outputData.push(outputRowData);
+										break;
+									case preferredDeCol:
+										// do nothing, see above
+										break;
+									case synonymEnCol:
+										expandMultiValue(cellData, value => {
+											outputRowData = _.clone(rowData);
+											outputRowData[synonymEnCol] = unwrapString(value);
+											outputRowData[synonymDeCol] = rowData[preferredDeCol];
+											outputData.push(outputRowData);
+										});
+										break;
+									case synonymDeCol:
+										expandMultiValue(cellData, value => {
+											outputRowData = _.clone(rowData);
+											outputRowData[synonymEnCol] = rowData[preferredEnCol];
+											outputRowData[synonymDeCol] = unwrapString(value);
+											outputData.push(outputRowData);
+										});
+										break;
+									case acronymCol:
+										if (cellData !== '') {
+											expandMultiValue(cellData, value => {
+												outputRowData = _.clone(rowData);
+												outputRowData[synonymEnCol] = unwrapString(value);
+												outputRowData[synonymDeCol] = unwrapString(value);
+												outputData.push(outputRowData);
+											});
+										}
+										break;
+									default:
+										// do nothing
+								}
+							});
+						} else if (mode === 'SmartCat') {
+
+						}
+					}
+				});
+			} else
+				outputData = data;
+		} else
+			outputData = data;
+
+		var wsName = "Data";
 
 		if (typeof console !== 'undefined') console.log(new Date());
 		var wb = XLSX.utils.book_new(),
-			ws = XLSX.utils.aoa_to_sheet(data);
+			ws = XLSX.utils.aoa_to_sheet(outputData);
 
 		/* add worksheet to workbook */
-		XLSX.utils.book_append_sheet(wb, ws, ws_name);
+		XLSX.utils.book_append_sheet(wb, ws, wsName);
 
 		/* write workbook */
 		if (typeof console !== 'undefined') console.log(new Date());
